@@ -1,0 +1,360 @@
+!
+version 12.4
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Router
+!
+!
+!
+!
+ip dhcp excluded-address 10.169.37.65 10.169.37.70
+ip dhcp excluded-address 10.169.37.1 10.169.37.5
+ip dhcp excluded-address 10.169.37.129 10.169.37.133
+ip dhcp excluded-address 10.169.37.161 10.169.37.165
+!
+ip dhcp pool net_A_groundOutlets
+ network 10.169.37.64 255.255.255.192
+ default-router 10.169.37.65
+ dns-server 10.169.36.130
+ domain-name building-a.rcomp-19-20-na-g2
+ip dhcp pool net_A_floorOneOutlets
+ network 10.169.37.0 255.255.255.192
+ default-router 10.169.37.1
+ dns-server 10.169.36.130
+ domain-name building-a.rcomp-19-20-na-g2
+ip dhcp pool net_A_wifi
+ network 10.169.37.128 255.255.255.224
+ default-router 10.169.37.129
+ dns-server 10.169.36.130
+ domain-name building-a.rcomp-19-20-na-g2
+ip dhcp pool net_A_VoIP
+ network 10.169.37.160 255.255.255.224
+ default-router 10.169.37.161
+ option 150 ip 10.169.37.161
+!
+!
+!
+no ip cef
+no ipv6 cef
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+spanning-tree mode pvst
+!
+!
+!
+!
+!
+!
+interface FastEthernet0/0
+ no ip address
+ duplex auto
+ speed auto
+ shutdown
+!
+interface FastEthernet0/1
+ no ip address
+ duplex auto
+ speed auto
+ shutdown
+!
+interface GigabitEthernet0/1/0
+ ip address 10.169.36.2 255.255.255.128
+ ip access-group externalSpoofing in
+ ip nat outside
+!
+interface GigabitEthernet0/3/0
+ no ip address
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.1
+ encapsulation dot1Q 700
+ ip address 10.169.37.65 255.255.255.192
+ ip access-group internalSpoofingGroundOutlets in
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.2
+ encapsulation dot1Q 701
+ ip address 10.169.37.1 255.255.255.192
+ ip access-group internalSpoofingFloorOne in
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.3
+ encapsulation dot1Q 702
+ ip address 10.169.37.129 255.255.255.224
+ ip access-group internalSpoofingWiFi in
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.4
+ encapsulation dot1Q 703
+ ip address 10.169.36.129 255.255.255.128
+ ip access-group internalSpoofingDMZ in
+ ip access-group DMZ out
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.5
+ encapsulation dot1Q 704
+ ip address 10.169.37.161 255.255.255.224
+ ip access-group internalSpoofingVoIP in
+ ip nat inside
+!
+interface GigabitEthernet0/3/0.6
+ encapsulation dot1Q 705
+ no ip address
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+router ospf 1
+ log-adjacency-changes
+ network 10.169.36.0 0.0.0.127 area 0
+ network 10.169.37.64 0.0.0.63 area 1
+ network 10.169.37.0 0.0.0.63 area 1
+ network 10.169.37.128 0.0.0.31 area 1
+ network 10.169.36.128 0.0.0.127 area 1
+ network 10.169.37.160 0.0.0.31 area 1
+!
+router rip
+!
+ip nat inside source list 5 interface GigabitEthernet0/1/0 overload
+ip nat inside source static tcp 10.169.36.131 80 10.169.36.2 80 
+ip nat inside source static tcp 10.169.36.131 443 10.169.36.2 443 
+ip nat inside source static tcp 10.169.36.130 53 10.169.36.2 53 
+ip nat inside source static udp 10.169.36.130 53 10.169.36.2 53 
+ip classless
+!
+ip flow-export version 9
+!
+!
+access-list 5 permit 10.169.36.0 0.0.1.255
+ip access-list extended externalSpoofing
+ remark Deny Edi A Network
+ deny ip 10.169.36.0 0.0.1.255 any
+ remark Allow Edi B Network
+ permit ip 10.169.38.0 0.0.1.255 any
+ remark Allow Edi C Network
+ permit ip 10.169.34.0 0.0.1.255 any
+ remark Allow Edi D Network
+ permit ip 10.169.32.0 0.0.1.255 any
+ remark Allow Campus Network
+ permit ip 10.169.36.0 0.0.0.127 any
+ remark Allow ISP Network
+ permit ip 17.10.5.148 0.0.0.3 any
+ remark Allow VoIP traffic
+ permit udp any any eq tftp
+ permit tcp any eq 1720 any
+ permit tcp any any eq 1720
+ permit tcp any any eq 1028
+ permit tcp any any eq 5060
+ permit udp any any eq 5060
+ permit tcp any any eq 2000
+ permit udp any any eq 2000
+ remark Allow OSPF traffic
+ permit ospf 10.169.32.0 0.0.15.255 any
+ remark Allow NAT traffic
+ permit tcp any host 10.169.36.2 eq www
+ permit tcp any host 10.169.36.2 eq 443
+ permit tcp any host 10.169.36.2 eq domain
+ permit udp any host 10.169.36.2 eq domain
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ip access-list extended internalSpoofingDMZ
+ remark Allow DMZ network
+ permit ip 10.169.36.128 0.0.0.127 any
+ remark Deny Ground Outlet network
+ deny ip 10.169.37.64 0.0.0.63 any
+ remark Deny First Floor network
+ deny ip 10.169.37.0 0.0.0.63 any
+ remark Deny VoIP network
+ deny ip 10.169.37.160 0.0.0.31 any
+ remark Deny WiFi network
+ deny ip 10.169.37.128 0.0.0.31 any
+ remark Allow DHCP traffic
+ permit udp any eq bootpc any eq bootps
+ remark Allow OSPF traffic
+ permit ospf 10.169.36.0 0.0.1.255 any
+ remark Allow HTTP/HTTPS traffic
+ permit tcp host 10.169.36.131 eq www any
+ permit tcp host 10.169.36.131 eq 443 any
+ remark allow DNS traffic
+ permit tcp host 10.169.36.130 eq domain any
+ permit udp host 10.169.36.130 eq domain any
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ip access-list extended DMZ
+ remark Allow DNS traffic
+ permit udp any host 10.169.36.130 eq domain
+ remark Allow HTTP
+ permit tcp any host 10.169.36.131 eq www
+ remark Allow HTTPS
+ permit tcp any host 10.169.36.131 eq 443
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ remark Block All Other Traffic
+ deny ip any any
+ip access-list extended internalSpoofingGroundOutlets
+ remark Deny DMZ network
+ deny ip 10.169.36.128 0.0.0.127 any
+ remark Permit Ground Outlet network
+ permit ip 10.169.37.64 0.0.0.63 any
+ remark Deny First Floor network
+ deny ip 10.169.37.0 0.0.0.63 any
+ remark Deny VoIP network
+ deny ip 10.169.37.160 0.0.0.31 any
+ remark Deny WiFi network
+ deny ip 10.169.37.128 0.0.0.31 any
+ remark Allow DHCP traffic
+ permit udp any eq bootpc any eq bootps
+ remark Allow OSPF traffic
+ permit ospf 10.169.36.0 0.0.1.255 any
+ remark Allow HTTP/HTTPS traffic
+ permit tcp host 10.169.36.131 eq www any
+ permit tcp host 10.169.36.131 eq 443 any
+ remark allow DNS traffic
+ permit tcp host 10.169.36.130 eq domain any
+ permit udp host 10.169.36.130 eq domain any
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ip access-list extended internalSpoofingFloorOne
+ remark Deny DMZ network
+ deny ip 10.169.36.128 0.0.0.127 any
+ remark Deny Ground Outlet network
+ deny ip 10.169.37.64 0.0.0.63 any
+ remark Permit First Floor network
+ permit ip 10.169.37.0 0.0.0.63 any
+ remark Deny VoIP network
+ deny ip 10.169.37.160 0.0.0.31 any
+ remark Deny WiFi network
+ deny ip 10.169.37.128 0.0.0.31 any
+ remark Allow DHCP traffic
+ permit udp any eq bootpc any eq bootps
+ remark Allow OSPF traffic
+ permit ospf 10.169.36.0 0.0.1.255 any
+ remark Allow HTTP/HTTPS traffic
+ permit tcp host 10.169.36.131 eq www any
+ permit tcp host 10.169.36.131 eq 443 any
+ remark allow DNS traffic
+ permit tcp host 10.169.36.130 eq domain any
+ permit udp host 10.169.36.130 eq domain any
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ip access-list extended internalSpoofingWiFi
+ remark Deny DMZ network
+ deny ip 10.169.36.128 0.0.0.127 any
+ remark Deny Ground Outlet network
+ deny ip 10.169.37.64 0.0.0.63 any
+ remark Deny First Floor network
+ deny ip 10.169.37.0 0.0.0.63 any
+ remark Deny VoIP network
+ deny ip 10.169.37.160 0.0.0.31 any
+ remark Permit WiFi network
+ permit ip 10.169.37.128 0.0.0.31 any
+ remark Allow DHCP traffic
+ permit udp any eq bootpc any eq bootps
+ remark Allow OSPF traffic
+ permit ospf 10.169.36.0 0.0.1.255 any
+ remark Allow HTTP/HTTPS traffic
+ permit tcp host 10.169.36.131 eq www any
+ permit tcp host 10.169.36.131 eq 443 any
+ remark allow DNS traffic
+ permit tcp host 10.169.36.130 eq domain any
+ permit udp host 10.169.36.130 eq domain any
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+ip access-list extended internalSpoofingVoIP
+ remark Deny DMZ network
+ deny ip 10.169.36.128 0.0.0.127 any
+ remark Deny Ground Outlet network
+ deny ip 10.169.37.64 0.0.0.63 any
+ remark Deny First Floor network
+ deny ip 10.169.37.0 0.0.0.63 any
+ remark Permit VoIP network
+ permit ip 10.169.37.160 0.0.0.31 any
+ remark Deny WiFi network
+ deny ip 10.169.37.128 0.0.0.31 any
+ remark Allow DHCP traffic
+ permit udp any eq bootpc any eq bootps
+ remark Allow VoIP traffic
+ permit tcp 10.169.37.160 0.0.0.31 eq 1720 any
+ permit udp 10.169.37.160 0.0.0.31 eq tftp any
+ permit tcp 10.169.37.160 0.0.0.31 any eq 1720
+ permit tcp 10.169.37.160 0.0.0.31 any eq 5060
+ permit udp 10.169.37.160 0.0.0.31 any eq 5060
+ permit tcp 10.169.37.160 0.0.0.31 any eq 2000
+ permit udp 10.169.37.160 0.0.0.31 any eq 2000
+ remark Allow OSPF traffic
+ permit ospf 10.169.36.0 0.0.1.255 any
+ remark Allow ICMP request/reply
+ permit icmp any any echo
+ permit icmp any any echo-reply
+!
+!
+!
+!
+!
+!
+dial-peer voice 2 voip
+ destination-pattern 2...
+ session target ipv4:10.169.36.3
+!
+dial-peer voice 3 voip
+ destination-pattern 3...
+ session target ipv4:10.169.36.4
+!
+dial-peer voice 4 voip
+ destination-pattern 4...
+ session target ipv4:10.169.36.5
+!
+telephony-service
+ max-ephones 20
+ max-dn 20
+ ip source-address 10.169.37.161 port 2000
+ auto assign 1 to 20
+!
+ephone-dn 1
+ number 1001
+!
+ephone-dn 2
+ number 1002
+!
+ephone 1
+ device-security-mode none
+ mac-address 00E0.F99E.04D3
+ type 7960
+ button 1:1
+!
+ephone 2
+ device-security-mode none
+ mac-address 0005.5E58.44B2
+ type 7960
+ button 1:2
+!
+line con 0
+!
+line aux 0
+!
+line vty 0 4
+ login
+!
+!
+!
+end
+

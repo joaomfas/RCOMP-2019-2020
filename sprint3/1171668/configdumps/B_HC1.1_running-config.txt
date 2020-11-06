@@ -1,0 +1,74 @@
+!
+version 12.1
+no service timestamps log datetime msec
+no service timestamps debug datetime msec
+no service password-encryption
+!
+hostname Switch
+!
+!
+ip dhcp excluded-address 10.169.38.1 10.169.38.62
+!
+ip dhcp pool net_B_voIP
+ network 10.169.38.0 255.255.255.192
+ default-router 10.169.38.1
+ option 150 ip 10.169.38.1
+!
+!
+!
+spanning-tree mode pvst
+spanning-tree extend system-id
+!
+interface Port-channel2
+ switchport mode trunk
+!
+interface GigabitEthernet0/1
+ switchport mode trunk
+ channel-group 2 mode passive
+!
+interface GigabitEthernet1/1
+ switchport mode trunk
+ channel-group 2 mode passive
+!
+interface GigabitEthernet2/1
+ switchport access vlan 709
+!
+interface GigabitEthernet3/1
+ switchport access vlan 708
+!
+interface GigabitEthernet4/1
+ switchport access vlan 708
+!
+interface GigabitEthernet5/1
+ switchport access vlan 707
+!
+interface GigabitEthernet6/1
+ switchport access vlan 709
+!
+interface GigabitEthernet7/1
+ switchport mode access
+ switchport voice vlan 710
+!
+interface GigabitEthernet8/1
+!
+interface GigabitEthernet9/1
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+!
+!
+!
+line con 0
+!
+line vty 0 4
+ login
+line vty 5 15
+ login
+!
+!
+!
+!
+end
+
